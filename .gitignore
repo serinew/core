@@ -1,0 +1,21 @@
+# Build
+/main
+bin/
+/tmp/
+*.exe
+
+# Env (비밀 보호. .env.example은 커밋 가능)
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Go
+vendor/
+coverage.out
