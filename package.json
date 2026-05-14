@@ -4,6 +4,7 @@
     "description": "Core API Server",
     "scripts": {
         "dev": "bash scripts/dev.sh",
+        "dev:window": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.windows.ps1",
         "dev:plain": "go run ./cmd/server",
         "build": "go build -o bin/server ./cmd/server"
     }

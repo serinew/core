@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
+# macOS / Linux용. Windows는 npm run dev:window (scripts/dev.windows.ps1).
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+
+# Windows Git Bash: 부모 셸 PATH가 갱신되기 전이면 go 가 안 보일 수 있음(기본 설치 경로 보강)
+if ! command -v go >/dev/null 2>&1; then
+  for d in "/c/Program Files/Go/bin" "/c/Program Files (x86)/Go/bin"; do
+    if [[ -x "${d}/go.exe" ]]; then
+      export PATH="${d}:${PATH}"
+      break
+    fi
+  done
+fi
+
 PORT="${PORT:-}"
 if [[ -z "$PORT" && -f .env ]]; then
   PORT="$(

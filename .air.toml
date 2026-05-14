@@ -5,8 +5,8 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  bin = "./tmp/main"
-  cmd = "go build -buildvcs=false -o ./tmp/main ./cmd/server"
+  bin = "./tmp/main.exe"
+  cmd = "go build -buildvcs=false -o ./tmp/main.exe ./cmd/server"
   delay = 100
   exclude_dir = ["tmp", "testdata", "vendor", "node_modules", ".git", "bin", "assets", "scripts"]
   exclude_regex = ["_test\\.go$"]
