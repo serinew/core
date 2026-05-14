@@ -15,5 +15,5 @@ func V1Routes(r *gin.RouterGroup, store *repository.Store, cfg config.Config) {
 		Http.OK(c, &SuccOpts{Data: "v1 route"})
 	})
 	sign.SignRoutes(r.Group("/sign"), store, cfg)
-	users.UsersRoutes(r.Group("/users"), store)
+	users.UsersRoutes(r.Group("/users"), store, cfg)
 }
