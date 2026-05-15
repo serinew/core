@@ -25,9 +25,10 @@ const (
 	AccessTokenCookieName = "accessToken"
 	// AccessTokenCookieMaxAgeSeconds Set-Cookie Max-Age (48h).
 	AccessTokenCookieMaxAgeSeconds = 48 * 3600
-	redisTokenKeyPrefix            = "users:token:"
-	accessTokenAuthWindow          = 24 * time.Hour
-	tokenCacheTTL                  = 48 * time.Hour // Redis 키 TTL
+	redisTokenKeyPrefix   = "users:token:"
+	accessTokenAuthWindow = 24 * time.Hour
+	// tokenCacheTTL Redis 세션 행 최대 보존(키 TTL 상한); 실제 TTL은 만료까지의 남은 시간으로 잡음.
+	tokenCacheTTL = 48 * time.Hour
 	// MinTokenSecretLength 미만이면 발급 실패 (.env TOKEN_SECRET).
 	MinTokenSecretLength = 16
 )
@@ -38,9 +39,10 @@ var (
 	ErrTokenMisconfigured = errors.New("token: TOKEN_SECRET unset or too short")
 )
 
-type tokenRedisPayload struct {
-	types.SignLoginData `json:",inline"`
-	ExpiresAt           time.Time `json:"expiresAt"`
+// tokenRedisEnvelope — Redis 하나의 키에만 저장. API에는 data(SignLoginData)만 노출하면 됩니다.
+type tokenRedisEnvelope struct {
+	ExpiresAt time.Time           `json:"expiresAt"`
+	Data      types.SignLoginData `json:"data"`
 }
 
 // TokenService는 브라우저 accessToken(SSO 행·Redis) 검증 및 발급을 담당합니다.
@@ -93,15 +95,15 @@ func (t *TokenService) writeRedis(ctx context.Context, token string, data *types
 	if t.store == nil || t.store.Redis == nil {
 		return nil
 	}
-	payload := tokenRedisPayload{
-		SignLoginData: *data,
-		ExpiresAt:     authExpires,
+	env := tokenRedisEnvelope{
+		ExpiresAt: authExpires,
+		Data:      *data,
 	}
-	b, err := json.Marshal(payload)
+	b, err := json.Marshal(env)
 	if err != nil {
 		return err
 	}
-	return t.store.Redis.Set(ctx, redisTokenKey(token), b, tokenCacheTTL).Err()
+	return t.store.Redis.Set(ctx, redisTokenKey(token), b, redisSessionTTL(authExpires)).Err()
 }
 
 func (t *TokenService) AuthenticateFromToken(ctx context.Context, rawToken string) (*types.SignLoginData, error) {
@@ -142,16 +144,36 @@ func (t *TokenService) tryRedis(ctx context.Context, token string) (*types.SignL
 		}
 		return nil, false, err
 	}
-	var p tokenRedisPayload
-	if err := json.Unmarshal(b, &p); err != nil {
-		return nil, false, fmt.Errorf("token redis json: %w", err)
+	exp, session, decErr := decodeRedisTokenBlob(b)
+	if decErr != nil {
+		return nil, false, fmt.Errorf("token redis json: %w", decErr)
 	}
-	if time.Now().UTC().After(p.ExpiresAt) {
-		_ = t.store.Redis.Del(ctx, redisTokenKey(token)).Err()
+	if time.Now().UTC().After(exp) {
+		t.purgeRedisToken(ctx, token)
 		return nil, false, ErrTokenInvalid
 	}
-	out := &p.SignLoginData
-	return out, true, nil
+	return session, true, nil
+}
+
+// decodeRedisTokenBlob: v2 { expiresAt, data }, v1(레거시) flat+inline.
+func decodeRedisTokenBlob(b []byte) (exp time.Time, data *types.SignLoginData, err error) {
+	var env tokenRedisEnvelope
+	if uerr := json.Unmarshal(b, &env); uerr == nil && env.Data.ID != uuid.Nil {
+		d := env.Data
+		return env.ExpiresAt, &d, nil
+	}
+	var leg struct {
+		types.SignLoginData `json:",inline"`
+		ExpiresAt           time.Time `json:"expiresAt"`
+	}
+	if err := json.Unmarshal(b, &leg); err != nil {
+		return time.Time{}, nil, err
+	}
+	if leg.SignLoginData.ID == uuid.Nil {
+		return time.Time{}, nil, fmt.Errorf("token redis: unrecognized or empty payload")
+	}
+	d := leg.SignLoginData
+	return leg.ExpiresAt, &d, nil
 }
 
 func (t *TokenService) tryDB(ctx context.Context, rawToken string) (*types.SignLoginData, error) {
@@ -164,6 +186,7 @@ func (t *TokenService) tryDB(ctx context.Context, rawToken string) (*types.SignL
 		return nil, err
 	}
 	if time.Now().UTC().After(row.ExpiresAt) {
+		t.purgeRedisToken(ctx, rawToken)
 		return nil, ErrTokenInvalid
 	}
 	session, err := LoadSignLoginData(t.store, row.UserID)
@@ -174,6 +197,21 @@ func (t *TokenService) tryDB(ctx context.Context, rawToken string) (*types.SignL
 		log.Printf("token: redis refill failed (%v)", err)
 	}
 	return session, nil
+}
+
+// RevokeAccessToken은 쿠키에 실린 raw 토큰과 동일 문자열 기준으로 Redis 캐시·sso.access_token 행을 제거합니다.
+func (t *TokenService) RevokeAccessToken(ctx context.Context, raw string) error {
+	raw = sanitizeToken(raw)
+	if raw == "" {
+		return nil
+	}
+	if t.store != nil && t.store.Redis != nil {
+		if err := t.store.Redis.Del(ctx, redisTokenKey(raw)).Err(); err != nil {
+			log.Printf("token: revoke redis del failed (%v)", err)
+		}
+	}
+	var zero sso.AccessToken
+	return t.ssoRepos().Query().Where("token = ?", raw).Delete(&zero).Error
 }
 
 func deriveOpaqueAccessToken(secret string) (string, error) {
@@ -190,4 +228,25 @@ func deriveOpaqueAccessToken(secret string) (string, error) {
 
 func redisTokenKey(token string) string {
 	return redisTokenKeyPrefix + token
+}
+
+// redisSessionTTL: Redis TTL until auth expiry, capped by tokenCacheTTL.
+func redisSessionTTL(authExpires time.Time) time.Duration {
+	now := time.Now().UTC()
+	d := authExpires.Sub(now)
+	if d < time.Second {
+		return time.Second
+	}
+	if d > tokenCacheTTL {
+		return tokenCacheTTL
+	}
+	return d
+}
+
+func (t *TokenService) purgeRedisToken(ctx context.Context, raw string) {
+	raw = sanitizeToken(raw)
+	if raw == "" || t.store == nil || t.store.Redis == nil {
+		return
+	}
+	_ = t.store.Redis.Del(ctx, redisTokenKey(raw)).Err()
 }

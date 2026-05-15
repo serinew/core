@@ -1,6 +1,8 @@
 package users
 
 import (
+	"math"
+
 	"github.com/gin-gonic/gin"
 
 	userroute "github.com/serinew/core/internal/app/v1/users/userId"
@@ -21,12 +23,21 @@ func UsersRoutes(r *gin.RouterGroup, store *repository.Store, cfg config.Config)
 
 	r.GET("/", func(c *gin.Context) {
 		opts := repository.ReadOptsFromListQuery(types.FetchListQuery(c))
-		rows, total, err := svc.List(opts)
+		rows, countTotal, err := svc.List(opts)
 		if err != nil {
 			Http.InternalError(c, &ErrOpts{Message: err.Error()})
 			return
 		}
-		Http.OK(c, &SuccOpts{Data: gin.H{"items": rows, "total": total}})
+		var cn int
+		if countTotal > int64(math.MaxInt) {
+			cn = math.MaxInt
+		} else {
+			cn = int(countTotal)
+		}
+		Http.OK(c, &SuccOpts{
+			Data:  rows,
+			Count: &cn,
+		})
 	})
 
 	userroute.Routes(r, svc)

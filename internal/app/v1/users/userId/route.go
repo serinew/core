@@ -20,7 +20,7 @@ func Routes(r *gin.RouterGroup, svc *service.UserService) {
 			Http.BadRequest(c, &ErrOpts{Message: "invalid user id"})
 			return
 		}
-		u, err := svc.GetByID(id)
+		data, err := svc.GetSignLoginByID(id)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				Http.NotFound(c, &ErrOpts{Message: "user not found"})
@@ -29,6 +29,6 @@ func Routes(r *gin.RouterGroup, svc *service.UserService) {
 			Http.InternalError(c, &ErrOpts{Message: err.Error()})
 			return
 		}
-		Http.OK(c, &SuccOpts{Data: u})
+		Http.OK(c, &SuccOpts{Data: data})
 	})
 }
