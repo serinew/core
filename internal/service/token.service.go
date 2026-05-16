@@ -25,8 +25,8 @@ const (
 	AccessTokenCookieName = "accessToken"
 	// AccessTokenCookieMaxAgeSeconds Set-Cookie Max-Age (48h).
 	AccessTokenCookieMaxAgeSeconds = 48 * 3600
-	redisTokenKeyPrefix   = "users:token:"
-	accessTokenAuthWindow = 24 * time.Hour
+	redisTokenKeyPrefix            = "users:token:"
+	accessTokenAuthWindow          = 24 * time.Hour
 	// tokenCacheTTL Redis 세션 행 최대 보존(키 TTL 상한); 실제 TTL은 만료까지의 남은 시간으로 잡음.
 	tokenCacheTTL = 48 * time.Hour
 	// MinTokenSecretLength 미만이면 발급 실패 (.env TOKEN_SECRET).
@@ -89,6 +89,47 @@ func (t *TokenService) IssueAccessToken(ctx context.Context, userID uuid.UUID) (
 		log.Printf("token: redis cache write failed (%v), proceeding with DB-only auth", err)
 	}
 	return token, authExpires, nil
+}
+
+// IssueOrRenewAccessToken은 쿠키에 담긴 기존 accessToken 이 같은 사용자에게 아직 만료 전이면
+// 만료 시각을 accessTokenAuthWindow 만큼 슬라이딩하고 Redis 페이로드를 갱신한 뒤 같은 토큰 문자열을 반환합니다.
+// 조건을 만족하지 않으면 [IssueAccessToken] 과 동일하게 새 토큰을 발급합니다.
+func (t *TokenService) IssueOrRenewAccessToken(ctx context.Context, cookieRaw string, userID uuid.UUID) (token string, authExpires time.Time, err error) {
+	cookieRaw = sanitizeToken(cookieRaw)
+	if cookieRaw == "" {
+		return t.IssueAccessToken(ctx, userID)
+	}
+	if len(t.secret) < MinTokenSecretLength {
+		return "", time.Time{}, ErrTokenMisconfigured
+	}
+
+	var row sso.AccessToken
+	err = t.ssoRepos().Query().Where("token = ? AND user_id = ?", cookieRaw, userID).Take(&row).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return t.IssueAccessToken(ctx, userID)
+		}
+		return "", time.Time{}, err
+	}
+	if time.Now().UTC().After(row.ExpiresAt) {
+		return t.IssueAccessToken(ctx, userID)
+	}
+
+	newExp := time.Now().UTC().Add(accessTokenAuthWindow)
+	if err := t.ssoRepos().Query().Model(&sso.AccessToken{}).
+		Where("token = ? AND user_id = ?", cookieRaw, userID).
+		Update("expires_at", newExp).Error; err != nil {
+		return "", time.Time{}, err
+	}
+
+	data, loadErr := LoadSignLoginData(t.store, userID)
+	if loadErr != nil {
+		return "", time.Time{}, loadErr
+	}
+	if err := t.writeRedis(ctx, cookieRaw, data, newExp); err != nil {
+		log.Printf("token: redis sliding renew failed (%v); DB expiry already extended", err)
+	}
+	return cookieRaw, newExp, nil
 }
 
 func (t *TokenService) writeRedis(ctx context.Context, token string, data *types.SignLoginData, authExpires time.Time) error {

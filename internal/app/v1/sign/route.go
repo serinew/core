@@ -92,7 +92,8 @@ func (h *signHandlers) Login(c *gin.Context) {
 		writeSignErr(c, err)
 		return
 	}
-	rawTok, _, err := h.tokens.IssueAccessToken(c.Request.Context(), data.ID)
+	prevTok := readLoginAccessTokenCookie(c)
+	rawTok, _, err := h.tokens.IssueOrRenewAccessToken(c.Request.Context(), prevTok, data.ID)
 	if err != nil {
 		writeSignErr(c, err)
 		return
@@ -106,7 +107,19 @@ func (h *signHandlers) Login(c *gin.Context) {
 		h.cfg.CookieSecure,
 		true,
 	)
+	if sess, aerr := h.tokens.AuthenticateFromToken(c.Request.Context(), rawTok); aerr == nil && sess != nil {
+		data = sess
+	}
 	Http.OK(c, &SuccOpts{Data: data})
+}
+
+// readLoginAccessTokenCookie는 로그인 재발급·연장 판별용입니다. 없으면 빈 문자열.
+func readLoginAccessTokenCookie(c *gin.Context) string {
+	raw, err := c.Cookie(service.AccessTokenCookieName)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(raw)
 }
 
 // ChangePassword는 비밀번호 변경을 처리합니다.
