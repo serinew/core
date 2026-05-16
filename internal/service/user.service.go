@@ -39,3 +39,62 @@ func (s *UserService) GetSignLoginByID(id uuid.UUID) (*types.SignLoginData, erro
 func (s *UserService) List(opts *repository.ReadOpts) ([]core.User, int64, error) {
 	return s.users().FindPage(opts, userListSearchColumns)
 }
+
+// ListSignLogin은 List와 같은 필터·페이지 규칙으로 조회하고, 각 행을 SignLoginData(주소·프로필 포함)로 만듭니다.
+// 페이지에 포함된 사용자 id 집합에 대해 주소·프로필을 IN 쿼리로 한 번씩 불러오므로 N+1은 없습니다.
+func (s *UserService) ListSignLogin(opts *repository.ReadOpts) ([]types.SignLoginData, int64, error) {
+	rows, total, err := s.List(opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(rows) == 0 {
+		return []types.SignLoginData{}, total, nil
+	}
+	ids := make([]uuid.UUID, len(rows))
+	for i := range rows {
+		ids[i] = rows[i].ID
+	}
+
+	var addresses []core.UserAddress
+	addrRepo := repository.Repo[core.UserAddress](s.store, "core.user_address")()
+	if err := addrRepo.Query().Where("user_id IN ?", ids).Find(&addresses).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var profiles []core.UserProfile
+	profRepo := repository.Repo[core.UserProfile](s.store, "core.user_profile")()
+	if err := profRepo.Query().Where("user_id IN ?", ids).Find(&profiles).Error; err != nil {
+		return nil, 0, err
+	}
+
+	byAddr := make(map[uuid.UUID][]core.UserAddress, len(rows))
+	for _, a := range addresses {
+		byAddr[a.UserID] = append(byAddr[a.UserID], a)
+	}
+	byProf := make(map[uuid.UUID]*core.UserProfile, len(profiles))
+	for i := range profiles {
+		p := &profiles[i]
+		byProf[p.UserID] = p
+	}
+
+	byAdmin, err := loadSignLoginAdminsByUserIDs(s.store, ids)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	out := make([]types.SignLoginData, len(rows))
+	for i := range rows {
+		u := rows[i]
+		addr := byAddr[u.ID]
+		if addr == nil {
+			addr = []core.UserAddress{}
+		}
+		out[i] = types.SignLoginData{
+			User:    u,
+			Address: addr,
+			Profile: byProf[u.ID],
+			Admin:   byAdmin[u.ID],
+		}
+	}
+	return out, total, nil
+}

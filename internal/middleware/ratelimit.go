@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,6 +38,12 @@ func RouteBurstLimiter(cfg config.Config, rdb *redis.Client, tokens *service.Tok
 	strikeThreshold := cfg.RateLimitRevokeAfterStrikes
 
 	return func(c *gin.Context) {
+		// Swagger UI는 같은 라우트 템플릿으로 다수 요청이 발생해 버스트 한도를 쉽게 소모합니다.
+		if strings.HasPrefix(c.Request.URL.Path, "/v1/docs") {
+			c.Next()
+			return
+		}
+
 		keyMaterial := burstKeyMaterial(c)
 
 		var allowed bool

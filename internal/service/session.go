@@ -29,13 +29,45 @@ func LoadSignLoginData(store *repository.Store, userID uuid.UUID) (*types.SignLo
 		User:    *u,
 		Address: addresses,
 		Profile: nil,
+		Admin:   nil,
 	}
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return attachSignLoginAdmin(store, out)
+		}
+		return nil, err
+	}
+	out.Profile = &profile
+	return attachSignLoginAdmin(store, out)
+}
+
+// attachSignLoginAdmin는 core.admin 행이 있으면 data.Admin 을 채우고, 없으면 nil 로 둡니다.
+func attachSignLoginAdmin(store *repository.Store, out *types.SignLoginData) (*types.SignLoginData, error) {
+	var row core.Admin
+	err := repository.Repo[core.Admin](store, "core.admin")().
+		Query().Where("user_id = ?", out.ID).Take(&row).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return out, nil
 		}
 		return nil, err
 	}
-	out.Profile = &profile
+	out.Admin = &types.SignLoginAdmin{Authority: row.Authority}
+	return out, nil
+}
+
+func loadSignLoginAdminsByUserIDs(store *repository.Store, ids []uuid.UUID) (map[uuid.UUID]*types.SignLoginAdmin, error) {
+	if len(ids) == 0 {
+		return map[uuid.UUID]*types.SignLoginAdmin{}, nil
+	}
+	var rows []core.Admin
+	if err := repository.Repo[core.Admin](store, "core.admin")().Query().Where("user_id IN ?", ids).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[uuid.UUID]*types.SignLoginAdmin, len(rows))
+	for i := range rows {
+		r := rows[i]
+		out[r.UserId] = &types.SignLoginAdmin{Authority: r.Authority}
+	}
 	return out, nil
 }

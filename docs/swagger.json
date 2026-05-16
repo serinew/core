@@ -1,0 +1,623 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Serinew core HTTP API. Swagger UI(`/v1/docs`)는 accessToken 쿠키로 로그인한 사용자 중 core.admin 에 등록된 계정만 접근 가능합니다.",
+        "title": "Core API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/v1",
+    "paths": {
+        "/": {
+            "get": {
+                "description": "`/v1` 라우트 그룹 확인",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta"
+                ],
+                "summary": "V1 상태",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.SuccessEnvelopeStr"
+                        }
+                    }
+                }
+            }
+        },
+        "/sign": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sign"
+                ],
+                "summary": "현재 세션",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.SuccessEnvelopeSignLogin"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/sign/login": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sign"
+                ],
+                "summary": "로그인",
+                "parameters": [
+                    {
+                        "description": "요청 바디",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.SignLoginReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.SuccessEnvelopeSignLogin"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/sign/password": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sign"
+                ],
+                "summary": "비밀번호 변경",
+                "parameters": [
+                    {
+                        "description": "요청 바디",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.SignChangePasswordReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.SuccessEnvelopeMsg"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/sign/register": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sign"
+                ],
+                "summary": "회원 가입",
+                "parameters": [
+                    {
+                        "description": "요청 바디",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.SignUpReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.SuccessEnvelopeUser"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "사용자 목록",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "페이지 (기본 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "페이지 크기 (기본 20, 최대 100)",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "검색어",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.SuccessEnvelopeSignLoginList"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{userId}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "사용자 단건",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "사용자 UUID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.SuccessEnvelopeSignLogin"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_serinew_core_internal_types.ErrorDoc"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_serinew_core_internal_model_core.User": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_model_core.UserAddress": {
+            "type": "object",
+            "properties": {
+                "addr1": {
+                    "type": "string"
+                },
+                "addr2": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "userId": {
+                    "type": "string"
+                },
+                "zipCode": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_model_core.UserProfile": {
+            "type": "object",
+            "properties": {
+                "nickName": {
+                    "type": "string"
+                },
+                "profileImageUrl": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                },
+                "userName": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.ErrorDoc": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "statusCode": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.SignChangePasswordReq": {
+            "type": "object",
+            "required": [
+                "newPassword",
+                "oldPassword",
+                "userId"
+            ],
+            "properties": {
+                "newPassword": {
+                    "type": "string"
+                },
+                "oldPassword": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.SignLoginAdmin": {
+            "type": "object",
+            "properties": {
+                "authority": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.SignLoginData": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_serinew_core_internal_model_core.UserAddress"
+                    }
+                },
+                "admin": {
+                    "$ref": "#/definitions/github_com_serinew_core_internal_types.SignLoginAdmin"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "profile": {
+                    "$ref": "#/definitions/github_com_serinew_core_internal_model_core.UserProfile"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.SignLoginReq": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.SignUpReq": {
+            "type": "object",
+            "required": [
+                "addr1",
+                "email",
+                "name",
+                "password",
+                "phone",
+                "username",
+                "zipCode"
+            ],
+            "properties": {
+                "addr1": {
+                    "type": "string",
+                    "maxLength": 256
+                },
+                "addr2": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "zipCode": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.SuccessEnvelopeMsg": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "statusCode": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.SuccessEnvelopeSignLogin": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_serinew_core_internal_types.SignLoginData"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "statusCode": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.SuccessEnvelopeSignLoginList": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_serinew_core_internal_types.SignLoginData"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "statusCode": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.SuccessEnvelopeStr": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "statusCode": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_serinew_core_internal_types.SuccessEnvelopeUser": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_serinew_core_internal_model_core.User"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "statusCode": {
+                    "type": "integer"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "CookieAuth": {
+            "type": "apiKey",
+            "name": "accessToken",
+            "in": "cookie"
+        }
+    }
+}

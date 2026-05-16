@@ -32,9 +32,15 @@ type SignChangePasswordReq struct {
 	NewPassword string `json:"newPassword" binding:"required"`
 }
 
+// SignLoginAdmin는 관리자 행이 있을 때만 응답에 포함됩니다 (omitempty).
+type SignLoginAdmin struct {
+	Authority string `json:"authority"`
+}
+
 // SignLoginData는 로그인 성공 시 data 객체(JSON)입니다. 사용자 필드는 최상위로 펼칩니다 (json inline).
 type SignLoginData struct {
 	core.User `json:",inline"`
 	Address   []core.UserAddress `json:"address"`
 	Profile   *core.UserProfile  `json:"profile"`
+	Admin     *SignLoginAdmin    `json:"admin,omitempty"`
 }

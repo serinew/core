@@ -1,3 +1,16 @@
+// Package main은 Core HTTP 서버 진입점입니다.
+//
+// @title Core API
+// @version 1.0
+// @description Serinew core HTTP API. Swagger UI(`/v1/docs`)는 accessToken 쿠키로 로그인한 사용자 중 core.admin 에 등록된 계정만 접근 가능합니다.
+//
+// @BasePath /v1
+//
+// @schemes http https
+//
+// @securityDefinitions.apikey CookieAuth
+// @in cookie
+// @name accessToken
 package main
 
 import (
@@ -43,7 +56,7 @@ func main() {
 	middleware.RegisterRecovery(r)
 	tokens := service.NewTokenService(store, cfg.TokenSecret)
 	r.Use(middleware.RouteBurstLimiter(cfg, store.Redis, tokens))
-	app.AppRoutes(r, store, cfg)
+	app.AppRoutes(r, store, cfg, tokens)
 	middleware.RegisterNotFound(r)
 
 	addr := ":" + cfg.HTTPPort
