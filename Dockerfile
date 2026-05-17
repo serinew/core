@@ -1,20 +1,27 @@
 # syntax=docker/dockerfile:1
 
-# go.mod 의 Go 버전보다 낮은 베이스를 쓸 경우, 빌드 시 toolchain 자동 준비(GOTOOLCHAIN=auto).
-FROM golang:1.24-alpine AS builder
+# go.mod Go 버전과 베이스를 맞춰 toolchain 자동 다운로드(GOTOOLCHAIN) 비용을 없앱니다.
+FROM golang:1.25-alpine AS builder
 WORKDIR /src
 
-RUN apk add --no-cache git ca-certificates
+# private module / replace git URL 없음 — git 생략으로 apk·레이어 시간 절약
+RUN apk add --no-cache ca-certificates
 
 COPY go.mod go.sum ./
-ENV GOTOOLCHAIN=auto
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+	go mod download
 
-COPY . .
+# 빌드에 필요한 소스만 복사해 레이어 캐시 hit 범위를 넓힙니다.
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+COPY docs/ ./docs/
 
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+	--mount=type=cache,target=/root/.cache/go-build \
+	CGO_ENABLED=0 GOOS=linux go build \
 	-trimpath \
 	-ldflags="-s -w" \
+	-buildvcs=false \
 	-o /server \
 	./cmd/server
 

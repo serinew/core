@@ -8,3 +8,9 @@ Dockerfile*
 docker-compose*.yml
 **/node_modules
 terminals
+.air.toml
+package.json
+scripts/
+.env.example
+docs/swagger.yaml
+docs/swagger.json
