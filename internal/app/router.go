@@ -14,7 +14,7 @@ func AppRoutes(r *gin.Engine, store *repository.Store, cfg config.Config, tokens
 	r.Use(v1.SwaggerBarePathRedirect())
 
 	r.GET("/", func(c *gin.Context) {
-		Http.OK(c, &SuccOpts{Data: map[string]string{"name": "how are you?"}, Message: "Hello, suhyun"})
+		Http.OK(c, &SuccOpts{Message: "Core Api service server"})
 	})
 
 	v1.V1Routes(r.Group("/v1"), store, cfg, tokens)
