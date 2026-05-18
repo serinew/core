@@ -54,6 +54,7 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Logger())
 	middleware.RegisterRecovery(r)
+	r.Use(middleware.RequireBasicCoreSecret(cfg))
 	tokens := service.NewTokenService(store, cfg.TokenSecret)
 	r.Use(middleware.RouteBurstLimiter(cfg, store.Redis, tokens))
 	app.AppRoutes(r, store, cfg, tokens)
