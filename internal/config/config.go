@@ -16,9 +16,6 @@ type Config struct {
 	TokenSecret  string // accessToken HMAC 재료 (민 16바이트 권장)
 	CookieSecure bool   // HTTPS에서 Secure 쿠키 (COOKIE_SECURE=true)
 
-	// CoreSecretKey가 비어 있지 않으면 모든 요청에 Authorization: Basic … 검사(비밀번호 또는 단일 토큰).
-	CoreSecretKey string // CORE_SECRET_KEY
-
 	RateLimitEnabled bool          // RATE_LIMIT_ENABLED
 	RateLimitMax     int           // RATE_LIMIT_MAX (윈도우당 허용 횟수)
 	RateLimitWindow  time.Duration // RATE_LIMIT_WINDOW_SEC
@@ -60,7 +57,6 @@ func Load() Config {
 		RedisURL:     getenv("REDIS_URL", "redis://localhost:6379"),
 		TokenSecret:  strings.TrimSpace(os.Getenv("TOKEN_SECRET")),
 		CookieSecure: getenvBool("COOKIE_SECURE", false),
-		CoreSecretKey: strings.TrimSpace(os.Getenv("CORE_SECRET_KEY")),
 
 		RateLimitEnabled:            getenvBool("RATE_LIMIT_ENABLED", false),
 		RateLimitMax:                rlMax,
